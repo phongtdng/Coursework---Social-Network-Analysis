@@ -26,7 +26,10 @@ data <- read_csv("migration_data.csv") %>%
          target = "Country Dest Name",
          migration_2000 = "2000 [2000]") %>% 
   select(source, target, migration_2000) %>% 
-  filter(migration_2000 > 0)
+  mutate(migration_2000 = as.numeric(migration_2000)) %>% 
+  filter(migration_2000 > 0) %>% 
+  group_by(source,target) %>% 
+  summarise(migration_2000 = sum(migration_2000))
 data %>% head()
 ```
 
