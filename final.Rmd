@@ -81,6 +81,7 @@ sim_sir <- function(g,beta,mu,seeds){
     t <- t + 1
     ## I -> R
     infected <- which(state==1) #get them
+    
     # generate a random value for every infected, if it's < mu, let the node recover.
     state[infected] <- ifelse(runif(length(infected)) < mu,2,1)
     
@@ -89,26 +90,29 @@ sim_sir <- function(g,beta,mu,seeds){
     susceptible <- which(state==0) #get them
     
     ###Get contacts with weighted edges
-    if(sum(state ==0) >0 & sum(state == 1) > 0) {
-    contacts <- adjacent_vertices(g, infected) %>% 
+    if(sum(state ==0) >0 & sum(state == 1) > 0) { #stop generating infection once all are recovered
+    contacts <- adjacent_vertices(g, infected) %>% #find neighbors of infected vertices
       unlist() %>% 
-      names() %>% 
+      names() %>% #get the names of all the nodes
       sub(patter = "\\.", replacement =  "%") %>% 
       data.frame() %>% 
-      separate(".", c("vi", "vj"), sep = "%") %>% 
-      mutate(vi_id = lapply(vi, function(x){id <- which(V(g)$name == x)}) %>% unlist(),
-             vj_id = lapply(vj, function(x){id <- which(V(g)$name == x)}) %>% unlist(),
-             weight = E(g)[vi_id %->% vj_id]$weight) %>% 
-      filter(vj_id %in% susceptible) %>% 
+      separate(".", c("vi", "vj"), sep = "%") %>% #separate source and target nodes in pairs to id 
+      mutate(vi_id = lapply(vi, function(x){id <- which(V(g)$name == x)}) %>% unlist(), #id source node
+             vj_id = lapply(vj, function(x){id <- which(V(g)$name == x)}) %>% unlist(), #id target node
+             weight = E(g)[vi_id %->% vj_id]$weight) %>% #add weight of the link
+      filter(vj_id %in% susceptible) %>% #filter only susceptible nodes 
       #calculate beta_ij weighted by immigrant amount
       group_by(vj_id) %>% 
       mutate(sum_i_log_wij = sum(log(weight))) %>% 
       ungroup() %>%
       mutate(beta_ij = ifelse(sum_i_log_wij == 0, 0 ,beta * log(weight) / sum_i_log_wij))
+    
     ###Generate infection
     new_infected <- lapply(contacts$beta_ij, function(x){inf <- runif(1) < x}) %>% unlist()
     new_infected <- contacts$vj_id[new_infected]
     new_infected <- new_infected[!duplicated(new_infected)]
+    
+    ### Append nodes newly infected into the table
     if(length(new_infected)>0){
       state[new_infected] <- 1
       table <- rbind(table,data.frame(t,inf=new_infected))
