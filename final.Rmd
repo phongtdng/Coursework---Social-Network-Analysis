@@ -26,7 +26,10 @@ data <- read_csv("migration_data.csv") %>%
          target = "Country Dest Name",
          migration_2000 = "2000 [2000]") %>% 
   select(source, target, migration_2000) %>% 
-  mutate(migration_2000 = as.numeric(migration_2000)) %>% 
+  mutate(
+    source = gsub(x = source, pattern = "\\.", replacement = ""),
+    target = gsub(x = target, pattern = "\\.", replacement = ""),
+    migration_2000 = as.numeric(migration_2000)) %>% 
   filter(migration_2000 > 0) %>% 
   group_by(source,target) %>% 
   summarise(migration_2000 = sum(migration_2000))
@@ -35,7 +38,8 @@ data %>% head()
 
 ```{r}
 g <- graph_from_data_frame(data, directed = TRUE) %>% 
-  simplify(.)
+  simplify(.) 
+E(g)$weight <- data$migration_2000
 g
 ```
 
@@ -83,13 +87,32 @@ sim_sir <- function(g,beta,mu,seeds){
     ## S -> I
     infected <- which(state==1)
     susceptible <- which(state==0) #get them
-    contacts <- as.numeric(unlist(adjacent_vertices(g,infected))) #get the contacts of infected
-    contacts <- contacts[contacts %in% susceptible] # get those who are susceptible
-    new_infected <- contacts[runif(length(contacts)) < beta] #infect contacts
+    
+    ###Get contacts with weighted edges
+    if(sum(state ==0) >0 & sum(state == 1) > 0) {
+    contacts <- adjacent_vertices(g, infected) %>% 
+      unlist() %>% 
+      names() %>% 
+      sub(patter = "\\.", replacement =  "%") %>% 
+      data.frame() %>% 
+      separate(".", c("vi", "vj"), sep = "%") %>% 
+      mutate(vi_id = lapply(vi, function(x){id <- which(V(g)$name == x)}) %>% unlist(),
+             vj_id = lapply(vj, function(x){id <- which(V(g)$name == x)}) %>% unlist(),
+             weight = E(g)[vi_id %->% vj_id]$weight) %>% 
+      filter(vj_id %in% susceptible) %>% 
+      #calculate beta_ij weighted by immigrant amount
+      group_by(vj_id) %>% 
+      mutate(sum_i_log_wij = sum(log(weight))) %>% 
+      ungroup() %>%
+      mutate(beta_ij = ifelse(sum_i_log_wij == 0, 0 ,beta * log(weight) / sum_i_log_wij))
+    ###Generate infection
+    new_infected <- lapply(contacts$beta_ij, function(x){inf <- runif(1) < x}) %>% unlist()
+    new_infected <- contacts$vj_id[new_infected]
     new_infected <- new_infected[!duplicated(new_infected)]
     if(length(new_infected)>0){
       state[new_infected] <- 1
       table <- rbind(table,data.frame(t,inf=new_infected))
+    }
     }
   }
   table
@@ -103,7 +126,7 @@ set.seed(230)
 # Sample 1% of the network as initial infectious seed
 seeds <- sample(1:vcount(g),0.01*vcount(g))
 # Generate a simlulation of the SIR model with beta above threshold
-realization_at <- sim_sir(g,beta = 0.05,mu=0.1,seeds) 
+realization_at <- sim_sir(g,beta = 0.3,mu=0.1,seeds) 
 realization_at
 ```
 
@@ -151,7 +174,7 @@ c)  Choose a β above β~c~. Using centrality, communities or any other metric, 
 
 ```{r}
 set.seed(230)
-beta_at <- 0.1
+beta_at <- 0.5
 #target at random
 seeds_random <- sample(1:vcount(g),vcount(g)*0.01)
 realization_random <- sim_sir(g,beta = beta_at,mu=0.1,seeds_random) %>%
