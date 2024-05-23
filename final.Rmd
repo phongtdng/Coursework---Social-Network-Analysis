@@ -222,3 +222,90 @@ max(realization_between$ninf)
 max(realization_closeness$ninf)
 max(realization_pagerank)
 ```
+
+## Information stoppers
+
+### 5% randomly
+
+d)
+Choose those 5% randomly in the network. Simulate the SIR model above using beta~c 1% of the remaining nodes as seeds. Choose those seeds randomly.
+
+```{r}
+beta_at <- 0.1
+```
+
+
+```{r}
+set.seed(230)
+vaccinated_random <- sample(1:vcount(g),vcount(g)*0.05)
+gp_random <- delete_vertices(g,vaccinated_random)
+seeds <- sample(1:vcount(gp_random),vcount(gp_random)*0.01)
+vaccination_random <- sim_sir(gp_random,beta = beta_at,mu=0.1,seeds) %>%
+  group_by(t) %>% summarize(ninf=n())
+```
+
+### Vaccination according to their centrality
+
+Choose those 5% according to their centrality. Simulate the SIR model above using 1% of the remaining nodes as seeds. Choose those seeds randomly.
+
+```{r}
+# immunization by closeness
+set.seed(4785)
+vaccinated_closeness <- closeness(g) %>% enframe(name = "inf",value="closeness") %>%
+  slice_max(closeness,n = round(vcount(g)*0.05))
+gp_closeness <- delete_vertices(g,vaccinated_closeness$inf)
+seeds <- sample(1:vcount(gp_closeness),vcount(gp_closeness)*0.01)
+vaccination_targeted_closeness <- sim_sir(gp_closeness,beta = beta_at,mu=0.1, seeds) %>% 
+  group_by(t) %>%
+  summarize(ninf=n())
+
+# immunization by betweenness
+set.seed(4575)
+vaccinated_between <- betweenness(g) %>% enframe(name = "inf",value="betweenness") %>%
+  slice_max(betweenness,n=round(vcount(g)*0.05))
+gp_between <- delete_vertices(g,vaccinated_between$inf)
+seeds <- sample(1:vcount(gp_between),vcount(gp_between)*0.01)
+vaccination_targeted_between <- sim_sir(gp_between,beta = beta_at,mu=0.1,seeds) %>%
+  group_by(t) %>% summarize(ninf=n())
+
+# immunization by page rank
+set.seed(365)
+vaccinated_pagerank <- page_rank(g)$vector %>% enframe(name = "inf",value="page_rank") %>%
+  slice_max(page_rank,n=round(vcount(g)*0.05))
+gp_pagerank <- delete_vertices(g,vaccinated_pagerank$inf)
+seeds <- sample(1:vcount(gp_pagerank),vcount(gp_pagerank)*0.01)
+vaccination_targeted_pagerank <- sim_sir(gp_pagerank,beta = beta_at,mu=0.1,seeds) %>%
+  group_by(t) %>% summarize(ninf=n())
+```
+
+Measure the difference between both cases as you did in part c).
+
+```{r}
+ggplot() + 
+  geom_line(data=vaccination_random,aes(x=t,y=ninf,col="Vacc. Random"))+
+  geom_line(data=vaccination_targeted_closeness,aes(x=t,y=ninf,col="Vacc. Targeted Closeness"))+ 
+  geom_line(data=vaccination_targeted_between,aes(x=t,y=ninf,col="Vacc. Random Between"))+
+  geom_line(data=vaccination_targeted_pagerank,aes(x=t,y=ninf,col="Vacc. Targeted PageRank"))
+```
+
+-   The difference in the total number of infected people
+
+```{r}
+vaccination_random$ninf %>% sum()
+vaccination_targeted_closeness$ninf %>%  sum()
+vaccination_targeted_between$ninf %>% sum()
+vaccination_targeted_pagerank$ninf %>%  sum()
+```
+
+-   The difference in the time of the peak of infection (when most infections happen).
+
+```{r}
+max(vaccination_random$ninf)
+max(vaccination_targeted_closeness$ninf)
+max(vaccination_targeted_between$ninf)
+max(vaccination_targeted_pagerank$ninf)
+```
+
+## Effect of vaccination
+
+Comment on the relationship between the findings in part c) and d) using the same type of centrality for the 1% in part c) and 5% in part d).
