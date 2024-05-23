@@ -186,17 +186,17 @@ realization_random <- sim_sir(g,beta = beta_at,mu=0.1,seeds_random) %>%
 #target by closeness
 seeds_closeness <- closeness(g) %>% enframe(name = "inf",value="closeness") %>%
   slice_max(closeness,n= round(vcount(g)*0.01))
-realization_closeness <- sim_sir(g,beta = beta_at,mu=0.1,which(V(g)$name == seeds_closeness$inf)) %>%
+realization_closeness <- sim_sir(g,beta = beta_at,mu=0.1,which(V(g)$name %in% seeds_closeness$inf)) %>%
   group_by(t) %>% summarize(ninf=n())
 #target by betweenness
 seeds_between <- betweenness(g) %>% enframe(name = "inf",value="betweenness") %>%
   slice_max(betweenness,n= round(vcount(g)*0.01))
-realization_between <- sim_sir(g,beta = beta_at,mu=0.1,which(V(g)$name == seeds_between$inf)) %>%
+realization_between <- sim_sir(g,beta = beta_at,mu=0.1,which(V(g)$name %in% seeds_between$inf)) %>%
   group_by(t) %>% summarize(ninf=n())
 #target using page rank
 seeds_pagerank <- page_rank(g)$vector %>% enframe(name = "inf",value="page_rank") %>%
   slice_max(page_rank,n= round(vcount(g)*0.01))
-realization_pagerank <- sim_sir(g,beta = beta_at,mu=0.1,which(V(g)$name == seeds_pagerank$inf)) %>%
+realization_pagerank <- sim_sir(g,beta = beta_at,mu=0.1,which(V(g)$name %in% seeds_pagerank$inf)) %>%
   group_by(t) %>% summarize(ninf=n())
 
 ggplot() + geom_line(data=realization_random,aes(x=t,y=ninf,col="Target at random"))+
@@ -227,13 +227,11 @@ max(realization_pagerank)
 
 ### 5% randomly
 
-d)
-Choose those 5% randomly in the network. Simulate the SIR model above using beta~c 1% of the remaining nodes as seeds. Choose those seeds randomly.
+d)  Choose those 5% randomly in the network. Simulate the SIR model above using beta\~c 1% of the remaining nodes as seeds. Choose those seeds randomly.
 
 ```{r}
 beta_at <- 0.1
 ```
-
 
 ```{r}
 set.seed(230)
