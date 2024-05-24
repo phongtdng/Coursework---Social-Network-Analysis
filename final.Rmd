@@ -65,6 +65,8 @@ We also visualized the network to have a brief ideas of how it looks like. (To b
 
 We want to simulate the propagation of information on this network using the SIR model assuming that an infected person can transmit the information with probability β to a susceptible person on the network.
 
+For our network, we can think of this as information spreading between countries through immigration. That is a susceptible country would be one in which the information had not yet reached anyone in the country. An infected country would then be one that has already gotten hold of the information and now has a probability of spreading the information through the migrations. Finally, a recovered country would be one that is no longer able to spread the information. An analogy to this could be that the information is no longer trending in the country and therefore ceased to spread.
+
 ## Epidemic Threshold
 
 a)  Find the theoretical epidemic threshold β for your network for the information to reach a significant number of nodes.
@@ -74,6 +76,14 @@ mu <- 0.1
 betac <- mu*mean(degree(g))/(mean(degree(g)^2))
 betac
 ```
+
+To find the theoretical epidemic threshold β, we first defined a recovery rate mu of 0.1. This means that between each step (a defined period of time), each infected country has a 0.1 probability of stopping the spread of information and becoming immune to the spreading from infected countries.
+
+We then calculated the epidemic threshold using the formula:
+
+$$ \beta_c = \mu \frac{\langle k \rangle}{\langle k^2 \rangle}$$
+
+We obtained a β of 0.0004, which is very low. Since our network only has 226 nodes but there are a lot of edges, the possibility of a epidemic is high as there are many contacts between the nodes and the network is not at all large.
 
 ## Simulation
 
