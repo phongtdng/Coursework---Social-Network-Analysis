@@ -163,7 +163,7 @@ realization_bt %>%
 
 ```{r}
 set.seed(230)
-results <- map_dfr(seq(0,0.2,0.005), # beta range
+results <- map_dfr(seq(0,0.2,0.01), # beta range
         \(beta){ seeds <- sample(1:vcount(g),vcount(g)*0.01)
         realization <- sim_sir(g,beta,mu,seeds) # make a realization for each beta
         data.frame(beta,ninf=nrow(realization)) # create dataframe row
