@@ -20,6 +20,8 @@ library(igraph)
 
 # Import Data
 
+The data set used in this report is obtained from (LINK). The data file is in .csv format and contains 160,781 rows and 11 columns including information about the country of origin of the migration (name and country code), the country of destination (name and country code), and the information about the migration (gender, gender code, the amount of immigrants from 1960 to 2000 in decennial intervals).
+
 ```{r}
 data <- read_csv("migration_data.csv") %>% 
   rename(source = "Country Origin Name",
@@ -36,12 +38,16 @@ data <- read_csv("migration_data.csv") %>%
 data %>% head()
 ```
 
+First, we loaded the data into a variable, selecting only the name of country of origin ("source"), name of country of destination("target"), and the amount of immigrants of the migration in the year 2000 ("migration_2000"). We also removed the period (".") in the names of the countries both of origin and destination as later on we will perform a separation method which is affected if the name of the country contains the period. Next we converted the "migration_2000" into the proper data type (character to numeric) and filtered out the empty migrations. Since there are multiple migrations in the same year for the same pairs of countries, we summarized them so they are counted as one link instead of multiple links for the same pair. After this, we are left with a data frame of 23,718 observations.
+
 ```{r}
 g <- graph_from_data_frame(data, directed = TRUE) %>% 
   simplify(.) 
 E(g)$weight <- data$migration_2000
 g
 ```
+
+Next, we built the network graph with the function `graph_from_data_frame()`. We also removed any loops and multiple edges with the function `simplify()` and it seems that there are no extra edges as the number of edges stay the same. We then added the weight attribute to the edges using the amount of immigrants as weight. From the information of the graph, we can see that there are 226 vertices (or countries) and 23,718 edges (or migrations among those countries).
 
 ```{r}
 par(mar=c(0,0,0,0))
@@ -52,6 +58,8 @@ plot(g, directed = TRUE, weighted = TRUE,
      vertex.size = 4,
      vertex.label = "")
 ```
+
+We also visualized the network to have a brief ideas of how it looks like. (To be redacted by mapping the countries to its geographical locations).
 
 # Propagation Simulation
 
