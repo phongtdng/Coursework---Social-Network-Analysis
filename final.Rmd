@@ -230,11 +230,13 @@ results %>% ggplot(aes(x=beta,y=ninf))+ geom_point()+
 
 ## Better 1% seeds
 
-c)  Choose a β above β~c~. Using centrality, communities or any other metric, find a better set of 1% of seeds in the network so we get more infected people than the random case. Measure the difference of your choice with the random case as:
+c)  Choose a β above β~c~. Using centrality, communities or any other metric, find a better set of 1% of seeds in the network so we get more infected people than the random case. Measure the difference of your choice with the random case.
+
+Beside assigning the seeds at random, we will also use closeness, betweenness, and page rank to target certain nodes that are more "important" (or well connected) to see the effect of the information spread. This is simply done by calculating each metric for each node then find the 1% with the highest values and use them as seeds for the simulation. The infection rate is set at 0.3 here to ensure that an epidemic is bound to happen. We will also visualize the spreading to compare between the different methods.
 
 ```{r}
 set.seed(230)
-beta_at <- 0.5
+beta_at <- 0.3
 #target at random
 seeds_random <- sample(1:vcount(g),vcount(g)*0.01)
 realization_random <- sim_sir(g,beta = beta_at,mu=0.1,seeds_random) %>%
@@ -261,6 +263,8 @@ ggplot() + geom_line(data=realization_random,aes(x=t,y=ninf,col="Target at rando
   geom_line(data=realization_pagerank,aes(x=t,y=ninf,col="Target by page rank"))
 ```
 
+We can firstly see that targeting by closeness and by page rank make the propagation go much faster than by targeting the initial nodes at random. Overall, targeting by betweenness, closeness, or page rank all makes the information spread faster than by targeting at random. It also seems that using page rank, the spreading reaches all the nodes and concludes the simulation much faster than other methods.
+
 -   The difference in the total number of infected people
 
 ```{r}
@@ -270,14 +274,22 @@ realization_closeness$ninf %>%  sum()
 realization_pagerank$ninf %>% sum()
 ```
 
+All methods seem to be able to infect all of the network in the simulation. Since our network is small with only 226 nodes, this is not unusual. We can better compare the methods by looking at the time it takes for each method to peak in the infection.
+
 -   The difference in the time of the peak of infection (when most infections happen).
 
 ```{r}
-max(realization_random$ninf)
-max(realization_between$ninf)
-max(realization_closeness$ninf)
-max(realization_pagerank)
+rbind(
+  slice_max(realization_random, ninf),
+  slice_max(realization_between, ninf),
+  slice_max(realization_closeness, ninf),
+  slice_max(realization_pagerank, ninf)
+) %>% cbind(target_by = c("random", "between", "closeness", "page rank"))
 ```
+
+It seems that although targeting by closeness makes the spreading peak with higher amount of infected nodes (at 58). However, page rank takes 1 step less to peak (at *t* =1) and the amount of new infected nodes is almost as high as the peak of closeness (53 vs. 58 respectively). Furthermore, we also saw that targeting by page rank also concluded the simulation faster. Therefore, targeting by page rank might be the most effective method to spread information through immigrants in the year 2000.
+
+Nevertheless, it is absolutely important to acknowledge that this could have been due to chances. More simulation needs to be done using each method to generate a more accurate result.
 
 ## Information stoppers
 
