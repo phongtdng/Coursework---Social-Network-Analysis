@@ -1,4 +1,5 @@
 ---
+s   ---
 title: "final_sna"
 author: "Phong Duong, Nienke Visscher, Frederick Sims"
 date: "2024-05-18"
@@ -83,7 +84,7 @@ We then calculated the epidemic threshold using the formula:
 
 $$ \beta_c = \mu \frac{\langle k \rangle}{\langle k^2 \rangle}$$
 
-We obtained a β of 0.0004, which is very low. This means that if the infection rate (or information propagation rate) is higher than 0.0004, all nodes in the network will be infected at some time *t.* Since our network only has 226 nodes but there are a lot of edges, the possibility of a epidemic is high as there are many contacts between the nodes and the network is not at all large so it is not at all surprising that information can easily spread through out all of the network.
+We obtained a β of 0.0004, which is very low. This means that if the infection rate (or information propagation rate) is higher than 0.0004, an epidemic will occur at some time *t.* Since our network only has 226 nodes but there are a lot of edges, the possibility of a epidemic is high as there are many contacts between the nodes and the network is not at all large so it is not at all surprising that information can easily spread through out all of the network.
 
 ## Simulation
 
@@ -93,7 +94,7 @@ First we will build a function to simulate this model. Since our network consist
 
 $$ \beta_{ij} = \beta \frac{\log{w_{ij}}}{\sum_i \log{w_{ij}}}$$
 
-In which β is the base infection rate (or information propagation rate) and w~ij~ is the amount of immigrants from country *i*to country *j*. The model therefore gives higher probability of being infected (capping at β) to countries with higher amount of incoming immigrants in comparison to countries with low immigrants.
+In which β is the base infection rate (or information propagation rate) and w~ij~ is the amount of immigrants from country *i* to country *j*. The model therefore gives higher probability of being infected (capping at β) to countries with higher amount of incoming immigrants in comparison to countries with low immigrants.
 
 ```{r}
 sim_sir <- function(g,beta,mu,seeds){
@@ -151,7 +152,7 @@ The simulation function consists of 3 main components: the initial state of the 
 
 First, the function initiates with all vertices at susceptible state (information has not been spread to nor able to spread information). The function then assigns the infection according to the provided seeds (selected countries). Time *t* is set at 0. Finally, a table is created to record the infected vertices during time *t*.
 
-Next, the function runs a while loop until no node is in the infected state. For each loop, time *t* increased by 1. Then, the infected nodes are saved into a variable and sequentially given a chance to recover if thire assigned random probability is lower than mu. This concludes the simulation of recovery.
+Next, the function runs a while loop until no node is in the infected state. For each loop, time *t* increased by 1. Then, the infected nodes are saved into a variable and sequentially given a chance to recover if the assigned random probability is lower than mu. This concludes the simulation of recovery.
 
 Finally, the loop continues to simulate the spread of information (or infection) by first saving the infected and susceptible nodes into variables. It then runs the infection spreading if there are infected and susceptible nodes. This condition was put in place to stop generating infection over recovered nodes after all nodes have been infected or when there are no infectious nodes. The infection is realized by:
 
