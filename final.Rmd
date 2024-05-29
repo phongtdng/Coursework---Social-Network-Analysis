@@ -17,6 +17,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(igraph)
+library(patchwork)
+library(randomForest)
+library(caret)
 ```
 
 # Import Data
@@ -376,3 +379,336 @@ max(vaccination_targeted_pagerank$ninf)
 ## Effect of vaccination
 
 Comment on the relationship between the findings in part c) and d) using the same type of centrality for the 1% in part c) and 5% in part d).
+
+## Building a predictive model
+
+With the results of part b) train a model that predicts that time to infection of a node using their degree, centrality, betweeness and page rank. Use that model to select the seed nodes as those with the smallest time to infection in part c). Repeat d).
+
+```{r}
+
+#RESULTS OF PART B
+# Sample 1% of the network as initial infectious seed
+seeds <- sample(1:vcount(g),0.01*vcount(g))
+# Generate a simlulation of the SIR model with beta above threshold
+realization_at <- sim_sir(g,beta = 0.3,mu=0.1,seeds) 
+realization_at
+```
+
+First, we compute the degree, centrality, betweenness and pagerank for each node and combine these metrics with the output of the spreading simulation into a table. Then, this table is used to visualise the relationship between the metric and the time of infection (t)
+
+**1) degree**
+
+```{r,fig.height=3}
+
+set.seed(230)
+#Above treshold
+
+V(g)$name <- as.character(1:vcount(g))
+
+table_d_at <- degree(g) %>% enframe(name = "inf",value="degree") %>%
+  merge(realization_at) 
+
+p1 <-table_d_at %>% 
+  ggplot(aes(x=t,y=degree)) + geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "purple")+
+  scale_y_log10()
+
+```
+
+**2) centrality**
+
+```{r}
+
+set.seed(230)
+#Above treshold
+table_c_at <- closeness(g) %>% enframe(name = "inf",value="closeness") %>%
+  merge(realization_at) 
+
+p2 <-table_c_at %>% 
+  ggplot(aes(x=t,y=closeness)) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "purple")+
+  scale_y_log10()
+```
+
+**3) betweeness**
+
+```{r}
+set.seed(230)
+#Above treshold
+table_b_at <- betweenness(g) %>% enframe(name = "inf",value="betweenness") %>%
+  merge(realization_at)
+
+p3 <-table_b_at %>% 
+  ggplot(aes(x=t,y=betweenness)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "purple")+
+  scale_y_log10()
+
+```
+
+**4) page rank**
+
+```{r}
+set.seed(230)
+#Above treshold
+table_pr_at <- page_rank(g)$vector %>% enframe(name = "inf",value="page_rank") %>%
+  merge(realization_at) 
+
+p4<-table_pr_at %>% 
+  ggplot(aes(x=t,y=page_rank)) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "purple")+
+  scale_y_log10()
+
+```
+
+```{r}
+set.seed(230)
+
+p1+p2+p3+p4
+
+#Above treshold
+df <- merge(table_b_at, table_c_at)
+df <- merge(table, table_d_at)
+df <- merge(table, table_pr_at)
+cor(df$t,df[,-c(1,2)])
+```
+
+The plots and the correlation matrix show that the metrics are only weakly associated with the time of infection.
+
+In the following section, we train a model to predict the tine of infection based on the four metrics evaluated above. First, the data is splitted into training (80% ) and testing (20% ) data sets. Th train control is set to utilising 10 fold cross validations. Then, three different machine learning algorithms are trained to predict the time to infection. The first algorithm is a *random forest* which is an ensemble learning method that constructs multiple decision trees during training and outputs the mean prediction (regression) of the individual trees as its result. The second algorithm is a *poisson regression* this model is designed to estimate models with a non-negative discrete outcome variable. The last algorithm is a *neural network* is a computational model inspired by the structure and function of the human brain, composed of interconnected nodes organized in layers, capable of learning complex patterns from data through iterative training algorithms.
+
+```{r}
+options(scipen = 999)
+
+# Target
+target <- df$t
+
+# Split data into training and test sets
+set.seed(123)  # for reproducibility
+trainIndex <- createDataPartition(target, p = .8, 
+                                  list = FALSE, 
+                                 times = 1)
+
+#Create a train and test data set
+trainData <- df[trainIndex,]
+testData <- df[-trainIndex,]
+
+train_control <- trainControl(method = "cv", number = 10) 
+
+#TRAINING THE MODEL
+# Train a Random Forest model
+# Train Random Forest model using caret
+rf_model <- train(t ~ degree + closeness + betweenness + page_rank, 
+                  data = trainData, 
+                  method = "rf", 
+                  trControl = train_control)
+
+#Train a poison model using caret
+poisson_fit <- train(t ~ degree + closeness + betweenness + page_rank, 
+                         data = trainData, 
+                     method = "glm", family = poisson,
+                     trControl = train_control)
+
+#Train a neural network
+nn_fit <- train(t ~ degree + closeness + betweenness + page_rank, 
+                         data = trainData, 
+                     method = "nnet",
+                     trControl = train_control)
+
+
+
+results <- resamples(list(random_forest = rf_model, poisson =poisson_fit, neural_network = nn_fit))
+summary(results)
+
+
+# Predict on the test set
+predictions <- predict(rf_model, testData)
+testData$predictions <- predictions
+
+#Plot predicted vs actual time to infection
+ggplot(testData, aes(x = t, y = predictions)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = 'red') +
+  labs(title = "Predicted vs Actual Time to Infection",
+       x = "Actual Time to Infection",
+       y = "Predicted Time to Infection") +
+  theme_minimal()
+
+```
+
+The accuracy metrics do not seem to differ greatly and we select the predictions based on the random forest model. The graph visualising the predicted vs actual time to infection shows that the random forest model does not predict the time to infection precisely. As the network is rather small and the training set used to train the model is also relatively small, causing the algorithm to not have sufficient data points to learn and provide precise prediction.
+
+### Nodes with lowest time to infection
+
+We use the predicted time to infections to select 1% of the nodes with the lowest predicted time to infection. Then, these nodes are used as seeds to simulate spreading in the network. We compare this spreading with the spreading of a simulation with randomly selected seeds.
+
+```{r}
+set.seed(230)
+
+# Predict the time to infection for all nodes
+all_predictions <- predict(rf_model, df)
+
+# Add predictions to the data frame
+df$predicted_t <- all_predictions
+
+#Calculate 1% of the total nodes
+num_seeds <- nrow(df)*0.01 
+
+# Select 1% of the nodes with the smallest predicted time to infection
+seed_min_t <-df |> 
+  slice_min(predicted_t, n=round(num_seeds))
+
+#Randomly select 1% of the nodes in the network
+seeds_random <- sample(1:vcount(g),vcount(g)*0.01)
+realization_random <- sim_sir(g,beta = 0.3,mu=0.1,seeds_random) %>%
+  group_by(t) %>% summarize(ninf=n())
+
+seed_min_t$inf <- as.numeric(seed_min_t$inf)
+
+
+```
+
+### Applying seeds with lowest time to infection
+
+```{r}
+
+#Simulate spreading in the network with seeds being nodes with the lowest predicted time to infection
+realization_targeted_rf <- sim_sir(g,beta = 0.3,mu=0.1, seed_min_t$inf) %>%
+  group_by(t) %>% summarize(ninf=n())
+
+ggplot() + 
+  geom_line(data = realization_random, aes(x = t, y = ninf, color = "Random")) +
+  geom_line(data = realization_targeted_rf, aes(x = t, y = ninf, color = "Targeted")) +
+  scale_color_manual(name = "Seed selection", 
+                     values = c("Random" = "purple", "Targeted" = "darkgreen")) +
+  labs(title = "Infection Spread Over Time",
+       x = "Time (t)",
+       y = "Number of Infected Nodes (ninf)") +
+  theme_minimal()
+
+
+realization_random |> 
+  left_join(realization_targeted_rf, by = c("t"="t")) |> 
+  rename(ninf_random = ninf.x, ninf_target = ninf.y) |> 
+  mutate(diff_target_random = ninf_target-ninf_random) |> 
+  ggplot()+
+  geom_line(aes(x = t, y =  diff_target_random), color = "purple")+
+  geom_line(data = realization_random, aes(x = t, y = ninf, color = "Random")) +
+  geom_line(data = realization_targeted_rf, aes(x = t, y = ninf, color = "Targeted")) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red")+
+  scale_color_manual(name = "Seed selection", values = c("Random" = "darkgrey", "Targeted" = "lightgrey")) +
+  labs(title = "Difference infection spread targeted seed vs random seed",
+       x = "Time (t)",
+       y = "Difference number of infection targeted seed vs random seed") +
+  theme_minimal()
+  
+paste("The total number of infections in the random SIR model are ", realization_random$ninf %>% sum(), "infections" )
+
+paste("The total number of infections in the targeted SIR model are ", realization_targeted_rf$ninf %>%  sum(), "infections" )
+
+paste("The difference in number of infections between the targeted and the random SIR model is", (realization_targeted_rf$ninf %>%  sum()) - (realization_random$ninf %>% sum()), "infections" )
+
+paste("The maximum number of infections at one timepoint in the random SIR model is",max(realization_random$ninf), "infections")
+
+paste("The maximum number of infections at one timepoint in the targeted SIR model is",max(realization_targeted_rf$ninf), "infections")
+
+paste("The difference in number of maximum infections between the targeted and the random SIR model is", (max(realization_targeted_rf$ninf)) - (max(realization_random$ninf)), "infections" )
+
+
+
+```
+
+The graphs show a highly similar course of infections. However, the targeted simulation shows a higher peak of infections earlier in the simulation compared to the random simulation. Also, the targeted simulation has higher maximum number of infections at a one time point then the random simulation. However, in both simulation the entire network ends up infected.
+
+### Vaccination according to time to infection
+
+To start, we randomly selected 5% of the nodes and stored these nodes in the variable *vaccinated_random.* Then we created an igraph prime object, *gp_random,* in which the vertices attached to the 5% of the randomly selected nodes are deleted. In other words, 5% of the nodes in the network is vaccinated. From this reduced igraph object, *gp_random,* we randomly selected 1% of the nodes as seeds and simulated the sir model with 1% random seeds and 5% randomly vaccinated nodes. Then we repeated this process, however this time selecting the 5% of nodes to be vaccinated based on the lowest time to infection. Finally, we compared these two models.
+
+```{r}
+beta_at <- 0.1
+```
+
+```{r}
+set.seed(230)
+
+#Randomely select 5% of the nodes
+vaccinated_random <- sample(1:vcount(g),vcount(g)*0.05)
+
+#Create an igraph prime object in which the vertices attached to the 5% of the randomly selected nodes are deleted 
+gp_random <- delete_vertices(g,vaccinated_random)
+
+#From this reduced igraph object randomly selects 1% of the nodes as seeds
+seeds <- sample(1:vcount(gp_random),vcount(gp_random)*0.01)
+
+#Simulate the sir model with 1% random seeds and 5% nodes randomely vaccinated
+vaccination_random <- sim_sir(gp_random,beta = beta_at,mu=0.1,seeds) %>%
+  group_by(t) %>% summarize(ninf=n())
+```
+
+```{r}
+set.seed(4785)
+
+#Calulate 5% of the nodes 
+num_seeds <- nrow(df)*0.05  # Selecting 5% of the nodes
+
+# Select nodes with the smallest predicted time to infection
+seed_min_t <-df |> 
+  slice_min(predicted_t, n=round(num_seeds))
+
+#Seed IDs as numeric 
+seed_min_t$inf <- as.numeric(seed_min_t$inf)
+
+##Create an igraph prime object in which the vertices attached to the 5% of the nodes with the smallest time to infection are deleted
+gp_rf<- delete_vertices(g, seed_min_t$inf)
+gp_rf
+
+#From this reduced igraph object randomly selects 1% of the nodes as seeds
+seeds <- sample(1:vcount(gp_rf),vcount(gp_rf)*0.01)
+
+#Simulate the sir model with 1% random seeds and 5% nodes vaccinated based on their lowest time to infection
+vaccination_targeted_rf <- sim_sir(gp_rf ,beta = beta_at,mu=0.1, seeds) %>% 
+  group_by(t) %>%
+  summarize(ninf=n())
+
+#Plot the SIR models
+ggplot() + 
+  geom_line(data=vaccination_random,aes(x=t,y=ninf,col="Vacc. Random"))+
+  geom_line(data=vaccination_targeted_rf,aes(x=t,y=ninf,col="Vacc. Targeted"))+
+  scale_color_manual(name = "Seed selection", values = c("Vacc. Random" = "purple", "Vacc. Targeted" = "red"))+
+  labs(title = "Infection spead random vaccinated vs targeted vaccinated SIR model",
+       x = "Time (t)",
+       y = "Number of infections") +
+  theme_minimal()
+
+#Plot the random and targeted vaccinated SIR models and plot the difference in infections between these two
+vaccination_random |> 
+  left_join(vaccination_targeted_rf, by = c("t"="t")) |> 
+  rename(ninf_random = ninf.x, ninf_target = ninf.y) |> 
+  mutate(diff_target_random = ninf_target-ninf_random) |> 
+  ggplot()+
+  geom_line(aes(x = t, y =  diff_target_random), color = "purple")+
+  geom_line(data = vaccination_random, aes(x = t, y = ninf, color = "Random")) +
+  geom_line(data = vaccination_targeted_rf, aes(x = t, y = ninf, color = "Targeted")) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red")+
+  scale_color_manual(name = "Seed selection", values = c("Random" = "darkgrey", "Targeted" = "lightgrey")) +
+  labs(title = "Difference infection spead random vaccinated vs targeted vaccinated SIR model",
+       x = "Time (t)",
+       y = "Difference targeted vaccinated vs randomly vaccinated SIR model") +
+  theme_minimal()
+  
+paste("The total number of infections in the randomly vaccinated SIR model are ", vaccination_random$ninf %>% sum(), "infections" )
+
+paste("The total number of infections in the targeted vaccinated SIR model are ", vaccination_targeted_rf$ninf %>%  sum(), "infections" )
+
+paste("The difference in number of infections between the targeted and the randomly vaccinated SIR model is", (vaccination_targeted_rf$ninf %>%  sum())- (vaccination_random$ninf %>% sum()), "infections" )
+
+paste("The maximum number of infections at one timepoint in the randomly vaccinated SIR model is",max(vaccination_random$ninf), "infections")
+
+paste("The maximum number of infections at one timepoint in the targeted vaccinated SIR model is",max(vaccination_targeted_rf$ninf), "infections")
+
+paste("The difference in number of maximum infections between the targeted and the randomly vaccinated SIR model is", (max(vaccination_targeted_rf$ninf)) - (max(vaccination_random$ninf)), "infections" )
+```
+
+As one can see in the visualisations, the course of infections when a part of the network is vaccinated differs from the non-vaccinated SIR models as these models take about double the time until the number of new infections has reached 0. Interestingly, the targeted vaccinated SIR model shows higher peaks of infections in the earlier stages of the model than the randomly vaccinated SIR model. Also the randomly vaccinated SIR model has one more infected node at the end of the simulation compared to the targeted vaccinated SIR model. The targeted vaccinated SIR model has 3 more infections when comparing the maximum number of infections at 1 time point.
