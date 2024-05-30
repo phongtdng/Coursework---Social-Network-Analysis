@@ -71,7 +71,7 @@ We want to simulate the propagation of information on this network using the SIR
 
 For our network, we can think of this as information spreading between countries through immigration. That is a susceptible country would be one in which the information had not yet reached anyone in the country. An infected country would then be one that has already gotten hold of the information and now has a probability of spreading the information through the migrations. Finally, a recovered country would be one that is no longer able to spread the information. An analogy to this could be that the information is no longer trending in the country and therefore ceased to spread.
 
-## Epidemic Threshold
+## 1 Epidemic Threshold
 
 a)  Find the theoretical epidemic threshold β for your network for the information to reach a significant number of nodes.
 
@@ -89,7 +89,7 @@ $$ \beta_c = \mu \frac{\langle k \rangle}{\langle k^2 \rangle}$$
 
 We obtained a β of 0.0004, which is very low. This means that if the infection rate (or information propagation rate) is higher than 0.0004, an epidemic will occur at some time *t.* Since our network only has 226 nodes but there are a lot of edges, the possibility of a epidemic is high as there are many contacts between the nodes and the network is not at all large so it is not at all surprising that information can easily spread through out all of the network.
 
-## Simulation
+## 2 Simulation
 
 b)  Assuming that randomly-selected 1% of the nodes of your network knows about the information, simulate the SIR model below and above that threshold and plot the number of infected people as a function of β.
 
@@ -175,7 +175,7 @@ Finally, the loop continues to simulate the spread of information (or infection)
 
 These newly infected nodes are then saved into the recording table. Using this simulation function, we can now simulate the information propagation with 2 scenarios, one where the infection rate β is higher than the epidemic threshold and one where the infection rate is lower than the threshold.
 
-### Above Threshold
+### 2.1 Above Threshold
 
 ```{r}
 set.seed(230)
@@ -197,7 +197,7 @@ realization_at %>%
 
 From the visualization, we can see that the information spread quickly at the beginning and peaked at around 43 new infected node around time *t* = 2. Since a large portion of the network has already been infected at this point, the amount of recovered country also went up. In addition to the fact that less countries are susceptible to be spread information to, the spreading starts to subside and around time *t* = 10, the majority of the nodes have already been spread the information to.
 
-### Below threshold
+### 2.2 Below threshold
 
 ```{r}
 set.seed(230)
@@ -219,7 +219,7 @@ realization_bt %>%
 
 The graph is clearly different from the graph where infection rate β is higher than the threshold. Here, we can see that the seeding nodes were barely able to spread the infection and only minimal nodes were infected throughout the simulation.
 
-### Different Betas
+### 2.3 Different Betas
 
 ```{r}
 set.seed(230)
@@ -232,7 +232,7 @@ results %>% ggplot(aes(x=beta,y=ninf))+ geom_point()+
   geom_vline(xintercept = betac,linetype=2)
 ```
 
-## Better 1% seeds
+## 3 Better 1% seeds
 
 c)  Choose a β above β~c~. Using centrality, communities or any other metric, find a better set of 1% of seeds in the network so we get more infected people than the random case. Measure the difference of your choice with the random case.
 
@@ -295,9 +295,9 @@ It seems that although targeting by closeness makes the spreading peak with high
 
 Nevertheless, it is absolutely important to acknowledge that this could have been due to chances. More simulation needs to be done using each method to generate a more accurate result.
 
-## Vaccination Simulation
+## 4 Vaccination Simulation
 
-### Vaccinating 5% randomly
+### 4.1 Vaccinating 5% randomly
 
 d)  Choose those 5% randomly in the network. Simulate the SIR model above β~c~ using 1% of the remaining nodes as seeds. Choose those seeds randomly.
 
@@ -327,11 +327,12 @@ ggplot() +
 
 As the visualization shows, information spread as quick as the same simulation in chapter `Above Treshold` peaking even at 51 infections after *t* = 2. Also mirroring the results of the aforementioned chapter, spreading slowed down due to the increase in recovered and subsequent decrease in susceptible nodes. The results are as expected insofar as spreading will occur via non-deleted nodes since direct migration between is highly likely for any combination of remaining nodes.
 
-### Vaccination according to their centrality
+### 4.2 Vaccination according to their centrality
 
 e)  Choose those 5% according to their centrality. Simulate the SIR model above using 1% of the remaining nodes as seeds. Choose those seeds randomly.
 
 Following, we perform targeted vaccination, where seeds who are subsequently deleted to simulate their vaccination are sampled according to the centrality measures closeness, betweeness, and page rank. The top 5% of nodes according to the respective centrality measure are then sampled and deleted.
+
 ```{r}
 # immunization by closeness
 set.seed(7467)
@@ -356,13 +357,7 @@ vaccinated_pagerank <- page_rank(g)$vector %>% enframe(name = "inf",value="page_
 gp_pagerank <- delete_vertices(g,vaccinated_pagerank$inf)
 seeds <- sample(1:vcount(gp_pagerank),vcount(gp_pagerank)*0.01)
 vaccination_targeted_pagerank <- sim_sir(gp_pagerank,beta = beta_at,mu=0.1,seeds) 
-
-distinct(vaccination_targeted_closeness, inf)
-distinct(vaccination_targeted_between, inf)
-distinct(vaccination_targeted_pagerank, inf)
 ```
-
-No matter the centrality use to determine vaccinated nodes, the information spread to all 215 remaining nodes as the number of rows for each table shows.
 
 ```{r}
 vaccination_targeted_closeness <- vaccination_targeted_closeness %>% 
@@ -379,12 +374,10 @@ ggplot() +
   geom_line(data=vaccination_targeted_between,aes(x=t,y=ninf,col="Vacc. Random Between"))+
   geom_line(data=vaccination_targeted_pagerank,aes(x=t,y=ninf,col="Vacc. Targeted PageRank"))
 ```
-Visualizing the trend of the spread, we see that vaccinating (deleting) nodes from the network according to their `closeness` results in even more adverse time to infection peak reaching it at *t* = 1. On the other hand, vaccinating nodes according to `page rank` sees not only a postponement in reaching the infection peak but also reduces the number at the peak of infection to 48. This may be attributable due to vaccinating the most central nodes according to their neighbors' importance in the network. As such, the transmission of information may be slightly delayed due to vaccinated nodes initially connecting lesser important nodes with more important nodes. On the other hand, closeness as a measure may undervalue the importance of other nodes in such a highly connected network.
 
-### Difference
+Visualizing the trend of the spread, we see that vaccinating (deleting) nodes from the network according to their `closeness` results in even more adverse time to infection peak reaching it at *t* = 1. On the other hand, vaccinating nodes according to `page rank` sees not only a postponement in reaching the infection peak but also reduces the number at the peak of infection to 48. This may be attributable due to vaccinating the most central nodes according to their neighbors' importance in the network. As such, the transmission of information may be slightly delayed due to vaccinated nodes initially connecting lesser important nodes with more important nodes. On the other hand, closeness as a measure may undervalue the importance of other nodes in such a highly connected network. Lastly, distributing vaccinations according to `betweeness` almost perfectly mirrors the spread trend if nodes are vaccinated at `random`.
 
-
-We can firstly see that targeting by closeness and by page rank make the propagation go much faster than by targeting the initial nodes at random. Overall, targeting by betweenness, closeness, or page rank all makes the information spread faster than by targeting at random. It also seems that using page rank, the spreading reaches all the nodes and concludes the simulation much faster than other methods.
+### 4.3 Differences
 
 -   The difference in the total number of infected people
 
@@ -395,24 +388,27 @@ vaccination_targeted_between$ninf %>% sum()
 vaccination_targeted_pagerank$ninf %>%  sum()
 ```
 
-All methods seem to be able to infect all of the network in the simulation. Since our network is small with only 226 nodes, this is not unusual. We can better compare the methods by looking at the time it takes for each method to peak in the infection.
+No matter the centrality used to determine vaccinated nodes, the information spread to all 215 remaining nodes. As such, the results mirror earlier results where infection was realised by value of centrality and the information also spread to all nodes in the network.
 
 -   The difference in the time of the peak of infection (when most infections happen).
 
 ```{r}
 rbind(
-  slice_max(realization_random, ninf),
-  slice_max(realization_between, ninf),
-  slice_max(realization_closeness, ninf),
-  slice_max(realization_pagerank, ninf)
+  slice_max(vaccination_random, ninf),
+  slice_max(vaccination_targeted_between, ninf),
+  slice_max(vaccination_targeted_closeness, ninf),
+  slice_max(vaccination_targeted_pagerank, ninf)
 ) %>% cbind(target_by = c("random", "between", "closeness", "page rank"))
 ```
 
-## Effect of vaccination
+Turning to the time it took to hit the peak in number of infected nodes, we reiterate our findings due to the visual cues in the last graph. While vaccinating nodes according to `closeness` shortens the time until the largest number of nodes are infected at time *t* and increases the absolute number to 54, `random` vaccination and vaccinating according to `betweeness` mirror each others peak (51) and time to reach said peak (*t* = 2). Using `page rank` as the basis to vaccinate nodes extends the time to hit the infection peak to *t* = 3 and reduces the absolute number at the peak of infection to 48.
 
-Comment on the relationship between the findings in part c) and d) using the same type of centrality for the 1% in part c) and 5% in part d).
+## 5 Comparing the Role of Centrality in Infection and Vaccination
 
-## Building a predictive model
+Generally, and according to intuition, the effect of the centrality on the spread is inverted when comparing infection and centrality. Whereas infecting the network based on `page rank` leads to faster spread, vaccinating nodes based on the same centrality measure slows down the speed of contamination comparatively. This of course, closely follows intuition where infection and vaccination exert contrary effects and subsequently sampling the same nodes for these inverted purposes generates these inverted outcomes. It is interesting, however, how much greater the spread of the absolute number of infected nodes at the peak infection point *t* is for infecting nodes randomly and based on centrality measures (43-58) versus performing the same technique to identify even more nodes selected to be vaccinated (48-53). As such, one conclusion may be 
+that spreading information in a network may be increased more easily with measures of centrality with fewer initially infected nodes than stopping (or slowing down) the spread of information even if using measures of centrality and more initially vaccinated nodes.
+
+## 6 Building a predictive model
 
 With the results of part b) train a model that predicts that time to infection of a node using their degree, centrality, betweeness and page rank. Use that model to select the seed nodes as those with the smallest time to infection in part c). Repeat d).
 
@@ -572,7 +568,7 @@ ggplot(testData, aes(x = t, y = predictions)) +
 
 The accuracy metrics do not seem to differ greatly and we select the predictions based on the random forest model. The graph visualising the predicted vs actual time to infection shows that the random forest model does not predict the time to infection precisely. As the network is rather small and the training set used to train the model is also relatively small, causing the algorithm to not have sufficient data points to learn and provide precise prediction.
 
-### Nodes with lowest time to infection
+### 6.1 Nodes with lowest time to infection
 
 We use the predicted time to infections to select 1% of the nodes with the lowest predicted time to infection. Then, these nodes are used as seeds to simulate spreading in the network. We compare this spreading with the spreading of a simulation with randomly selected seeds.
 
@@ -602,7 +598,7 @@ seed_min_t$inf <- as.numeric(seed_min_t$inf)
 
 ```
 
-### Applying seeds with lowest time to infection
+### 6.2 Applying seeds with lowest time to infection
 
 ```{r}
 
@@ -654,7 +650,7 @@ paste("The difference in number of maximum infections between the targeted and t
 
 The graphs show a highly similar course of infections. However, the targeted simulation shows a higher peak of infections earlier in the simulation compared to the random simulation. Also, the targeted simulation has higher maximum number of infections at a one time point then the random simulation. However, in both simulation the entire network ends up infected.
 
-### Vaccination according to time to infection
+### 6.3 Vaccination according to time to infection
 
 To start, we randomly selected 5% of the nodes and stored these nodes in the variable *vaccinated_random.* Then we created an igraph prime object, *gp_random,* in which the vertices attached to the 5% of the randomly selected nodes are deleted. In other words, 5% of the nodes in the network is vaccinated. From this reduced igraph object, *gp_random,* we randomly selected 1% of the nodes as seeds and simulated the sir model with 1% random seeds and 5% randomly vaccinated nodes. Then we repeated this process, however this time selecting the 5% of nodes to be vaccinated based on the lowest time to infection. Finally, we compared these two models.
 
