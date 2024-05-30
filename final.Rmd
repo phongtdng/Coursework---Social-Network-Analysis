@@ -295,68 +295,96 @@ It seems that although targeting by closeness makes the spreading peak with high
 
 Nevertheless, it is absolutely important to acknowledge that this could have been due to chances. More simulation needs to be done using each method to generate a more accurate result.
 
-## Information stoppers
+## Vaccination Simulation
 
-### 5% randomly
+### Vaccinating 5% randomly
 
-d)  Choose those 5% randomly in the network. Simulate the SIR model above using beta\~c 1% of the remaining nodes as seeds. Choose those seeds randomly.
+d)  Choose those 5% randomly in the network. Simulate the SIR model above β~c~ using 1% of the remaining nodes as seeds. Choose those seeds randomly.
+
+In order to create the effect of a reliable vaccine stopping the infection and transmission of information, we delete 5% of the nodes in the network randomly. As such, they loose their function as neighbors, and therefore possible recipients of the information reducing the overall connectedness of the network. To run the simulation, we use the epidemic threshold β aboveβ~c~ , which resulted in a higher infrection rate as outlined earlier.
 
 ```{r}
-beta_at <- 0.1
+beta_at <- 0.3
 ```
 
 ```{r}
-set.seed(230)
+set.seed(5467)
 vaccinated_random <- sample(1:vcount(g),vcount(g)*0.05)
 gp_random <- delete_vertices(g,vaccinated_random)
 seeds <- sample(1:vcount(gp_random),vcount(gp_random)*0.01)
-vaccination_random <- sim_sir(gp_random,beta = beta_at,mu=0.1,seeds) %>%
-  group_by(t) %>% summarize(ninf=n())
+vaccination_random <- sim_sir(gp_random,beta = beta_at,mu=0.1,seeds) 
+distinct(vaccination_random, inf)
 ```
+
+Running the model, we see that the resulting table consists of 215 rows. Since 5% of all 226 nodes were vaccinated (deleted), this means that at some time *t* all remaining nodes (countries) have been infected.
+
+```{r}
+vaccination_random <- vaccination_random |> 
+  group_by(t) |> summarize(ninf=n())
+ggplot() + 
+  geom_line(data=vaccination_random,aes(x=t,y=ninf,col="Vacc. Random"))
+```
+
+As the visualization shows, information spread as quick as the same simulation in chapter `Above Treshold` peaking even at 51 infections after *t* = 2. Also mirroring the results of the aforementioned chapter, spreading slowed down due to the increase in recovered and subsequent decrease in susceptible nodes. The results are as expected insofar as spreading will occur via non-deleted nodes since direct migration between is highly likely for any combination of remaining nodes.
 
 ### Vaccination according to their centrality
 
-Choose those 5% according to their centrality. Simulate the SIR model above using 1% of the remaining nodes as seeds. Choose those seeds randomly.
+e)  Choose those 5% according to their centrality. Simulate the SIR model above using 1% of the remaining nodes as seeds. Choose those seeds randomly.
 
+Following, we perform targeted vaccination, where seeds who are subsequently deleted to simulate their vaccination are sampled according to the centrality measures closeness, betweeness, and page rank. The top 5% of nodes according to the respective centrality measure are then sampled and deleted.
 ```{r}
 # immunization by closeness
-set.seed(4785)
+set.seed(7467)
 vaccinated_closeness <- closeness(g) %>% enframe(name = "inf",value="closeness") %>%
   slice_max(closeness,n = round(vcount(g)*0.05))
 gp_closeness <- delete_vertices(g,vaccinated_closeness$inf)
 seeds <- sample(1:vcount(gp_closeness),vcount(gp_closeness)*0.01)
-vaccination_targeted_closeness <- sim_sir(gp_closeness,beta = beta_at,mu=0.1, seeds) %>% 
-  group_by(t) %>%
-  summarize(ninf=n())
+vaccination_targeted_closeness <- sim_sir(gp_closeness,beta = beta_at,mu=0.1, seeds)
 
 # immunization by betweenness
-set.seed(4575)
+set.seed(4786)
 vaccinated_between <- betweenness(g) %>% enframe(name = "inf",value="betweenness") %>%
   slice_max(betweenness,n=round(vcount(g)*0.05))
 gp_between <- delete_vertices(g,vaccinated_between$inf)
 seeds <- sample(1:vcount(gp_between),vcount(gp_between)*0.01)
-vaccination_targeted_between <- sim_sir(gp_between,beta = beta_at,mu=0.1,seeds) %>%
-  group_by(t) %>% summarize(ninf=n())
+vaccination_targeted_between <- sim_sir(gp_between,beta = beta_at,mu=0.1,seeds) 
 
 # immunization by page rank
-set.seed(365)
+set.seed(6484)
 vaccinated_pagerank <- page_rank(g)$vector %>% enframe(name = "inf",value="page_rank") %>%
   slice_max(page_rank,n=round(vcount(g)*0.05))
 gp_pagerank <- delete_vertices(g,vaccinated_pagerank$inf)
 seeds <- sample(1:vcount(gp_pagerank),vcount(gp_pagerank)*0.01)
-vaccination_targeted_pagerank <- sim_sir(gp_pagerank,beta = beta_at,mu=0.1,seeds) %>%
-  group_by(t) %>% summarize(ninf=n())
+vaccination_targeted_pagerank <- sim_sir(gp_pagerank,beta = beta_at,mu=0.1,seeds) 
+
+distinct(vaccination_targeted_closeness, inf)
+distinct(vaccination_targeted_between, inf)
+distinct(vaccination_targeted_pagerank, inf)
 ```
 
-Measure the difference between both cases as you did in part c).
+No matter the centrality use to determine vaccinated nodes, the information spread to all 215 remaining nodes as the number of rows for each table shows.
 
 ```{r}
+vaccination_targeted_closeness <- vaccination_targeted_closeness %>% 
+  group_by(t) %>%
+  summarize(ninf=n())
+vaccination_targeted_between <- vaccination_targeted_between %>%
+  group_by(t) %>% summarize(ninf=n())
+vaccination_targeted_pagerank <- vaccination_targeted_pagerank %>%
+  group_by(t) %>% summarize(ninf=n())
+
 ggplot() + 
   geom_line(data=vaccination_random,aes(x=t,y=ninf,col="Vacc. Random"))+
   geom_line(data=vaccination_targeted_closeness,aes(x=t,y=ninf,col="Vacc. Targeted Closeness"))+ 
   geom_line(data=vaccination_targeted_between,aes(x=t,y=ninf,col="Vacc. Random Between"))+
   geom_line(data=vaccination_targeted_pagerank,aes(x=t,y=ninf,col="Vacc. Targeted PageRank"))
 ```
+Visualizing the trend of the spread, we see that vaccinating (deleting) nodes from the network according to their `closeness` results in even more adverse time to infection peak reaching it at *t* = 1. On the other hand, vaccinating nodes according to `page rank` sees not only a postponement in reaching the infection peak but also reduces the number at the peak of infection to 48. This may be attributable due to vaccinating the most central nodes according to their neighbors' importance in the network. As such, the transmission of information may be slightly delayed due to vaccinated nodes initially connecting lesser important nodes with more important nodes. On the other hand, closeness as a measure may undervalue the importance of other nodes in such a highly connected network.
+
+### Difference
+
+
+We can firstly see that targeting by closeness and by page rank make the propagation go much faster than by targeting the initial nodes at random. Overall, targeting by betweenness, closeness, or page rank all makes the information spread faster than by targeting at random. It also seems that using page rank, the spreading reaches all the nodes and concludes the simulation much faster than other methods.
 
 -   The difference in the total number of infected people
 
@@ -367,13 +395,17 @@ vaccination_targeted_between$ninf %>% sum()
 vaccination_targeted_pagerank$ninf %>%  sum()
 ```
 
+All methods seem to be able to infect all of the network in the simulation. Since our network is small with only 226 nodes, this is not unusual. We can better compare the methods by looking at the time it takes for each method to peak in the infection.
+
 -   The difference in the time of the peak of infection (when most infections happen).
 
 ```{r}
-max(vaccination_random$ninf)
-max(vaccination_targeted_closeness$ninf)
-max(vaccination_targeted_between$ninf)
-max(vaccination_targeted_pagerank$ninf)
+rbind(
+  slice_max(realization_random, ninf),
+  slice_max(realization_between, ninf),
+  slice_max(realization_closeness, ninf),
+  slice_max(realization_pagerank, ninf)
+) %>% cbind(target_by = c("random", "between", "closeness", "page rank"))
 ```
 
 ## Effect of vaccination
