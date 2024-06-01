@@ -1,7 +1,7 @@
 ---
-s   ---
-title: "final_sna"
-author: "Phong Duong, Nienke Visscher, Frederick Sims"
+title: "Final Assignment"
+subtitle: "Social Network Analysis"
+author: "Phong Duong, Nienke Visscher, Frederick Peña Sims"
 date: "2024-05-18"
 output: html_document
 ---
