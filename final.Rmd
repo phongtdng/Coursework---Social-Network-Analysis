@@ -401,7 +401,7 @@ First, we compute the degree, centrality, betweenness and pagerank for each node
 ```{r,fig.height=3}
 
 set.seed(230)
-#Above treshold
+
 
 V(g)$name <- as.character(1:vcount(g))
 
@@ -420,7 +420,7 @@ p1 <-table_d_at %>%
 ```{r}
 
 set.seed(230)
-#Above treshold
+
 table_c_at <- closeness(g) %>% enframe(name = "inf",value="closeness") %>%
   merge(realization_at) 
 
@@ -435,7 +435,7 @@ p2 <-table_c_at %>%
 
 ```{r}
 set.seed(230)
-#Above treshold
+
 table_b_at <- betweenness(g) %>% enframe(name = "inf",value="betweenness") %>%
   merge(realization_at)
 
@@ -451,7 +451,7 @@ p3 <-table_b_at %>%
 
 ```{r}
 set.seed(230)
-#Above treshold
+
 table_pr_at <- page_rank(g)$vector %>% enframe(name = "inf",value="page_rank") %>%
   merge(realization_at) 
 
@@ -480,6 +480,7 @@ The plots and the correlation matrix show that the metrics are only weakly assoc
 In the following section, we train a model to predict the tine of infection based on the four metrics evaluated above. First, the data is splitted into training (80% ) and testing (20% ) data sets. Th train control is set to utilising 10 fold cross validations. Then, three different machine learning algorithms are trained to predict the time to infection. The first algorithm is a *random forest* which is an ensemble learning method that constructs multiple decision trees during training and outputs the mean prediction (regression) of the individual trees as its result. The second algorithm is a *poisson regression* this model is designed to estimate models with a non-negative discrete outcome variable. The last algorithm is a *neural network* is a computational model inspired by the structure and function of the human brain, composed of interconnected nodes organized in layers, capable of learning complex patterns from data through iterative training algorithms.
 
 ```{r}
+set.seed(123)
 options(scipen = 999)
 
 # Target
@@ -573,6 +574,7 @@ seed_min_t$inf <- as.numeric(seed_min_t$inf)
 ### Applying seeds with lowest time to infection
 
 ```{r}
+set.seed(123)
 
 #Simulate spreading in the network with seeds being nodes with the lowest predicted time to infection
 realization_targeted_rf <- sim_sir(g,beta = 0.3,mu=0.1, seed_min_t$inf) %>%
@@ -620,7 +622,7 @@ paste("The difference in number of maximum infections between the targeted and t
 
 ```
 
-The graphs show a highly similar course of infections. However, the targeted simulation shows a higher peak of infections earlier in the simulation compared to the random simulation. Also, the targeted simulation has higher maximum number of infections at a one time point then the random simulation. However, in both simulation the entire network ends up infected.
+The graphs show a highly similar course of infections. However, the targeted simulation shows a higher peak of infections earlier in the simulation compared to the random simulation. Also, the targeted simulation has higher maximum number of infections (difference of 7 infections) at a one time point then the random simulation. However, in both simulation the entire network ends up infected.
 
 ### Vaccination according to time to infection
 
@@ -711,4 +713,4 @@ paste("The maximum number of infections at one timepoint in the targeted vaccina
 paste("The difference in number of maximum infections between the targeted and the randomly vaccinated SIR model is", (max(vaccination_targeted_rf$ninf)) - (max(vaccination_random$ninf)), "infections" )
 ```
 
-As one can see in the visualisations, the course of infections when a part of the network is vaccinated differs from the non-vaccinated SIR models as these models take about double the time until the number of new infections has reached 0. Interestingly, the targeted vaccinated SIR model shows higher peaks of infections in the earlier stages of the model than the randomly vaccinated SIR model. Also the randomly vaccinated SIR model has one more infected node at the end of the simulation compared to the targeted vaccinated SIR model. The targeted vaccinated SIR model has 3 more infections when comparing the maximum number of infections at 1 time point.
+As one can see in the visualisations, the course of infections when a part of the network is vaccinated differs from the non-vaccinated SIR models as these models take about double the time until the number of new infections has reached 0. Interestingly, the targeted vaccinated SIR model shows higher peaks of infections in the earlier stages of the model than the randomly vaccinated SIR model. Also the randomly vaccinated SIR model has one more infected node at the end of the simulation compared to the targeted vaccinated SIR model. The targeted vaccinated SIR model has 4 more infections when comparing the maximum number of infections at 1 time point.
