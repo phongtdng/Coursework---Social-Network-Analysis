@@ -12,6 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
+The network that is used for this report is made from a bilateral network of global migration database for the period 1960 - 2000. Although the data does not have the highest freshness, in that it is not the most up-to-date, it is one of the first comprehensive database of global bilateral migration for the last half of the 20th century.
+
+In this report, we will focus on the migration during the year 2000. We will create a simulation of information propagation to see how information would spread from countries to countries based on the amount of immigrants between them. We will then perform various seeding strategies to see which metric will accelerate the information spreading the most. We will also simulate various "vaccination" strategies in which we will select a group of countries and eliminate their ability to spread information in order to study the most effective group against information dissemination. The report will be concluded with a machine learning model in which different metrics are used to create a predictive model for the time it takes to spread information to countries.
+
 # Libraries
 
 ```{r}
@@ -24,7 +28,7 @@ library(caret)
 
 # Import Data
 
-The data set used in this report is obtained from (LINK). The data file is in .csv format and contains 160,781 rows and 11 columns including information about the country of origin of the migration (name and country code), the country of destination (name and country code), and the information about the migration (gender, gender code, the amount of immigrants from 1960 to 2000 in decennial intervals).
+The data set used in this report is obtained from [World Bank Group](https://data.subak.org/dataset/global-bilateral-migration-database). The data file is in .csv format and contains 160,781 rows and 11 columns including information about the country of origin of the migration (name and country code), the country of destination (name and country code), and the information about the migration (gender, gender code, the amount of immigrants from 1960 to 2000 in decennial intervals).
 
 ```{r}
 data <- read_csv("migration_data.csv") %>% 
@@ -63,7 +67,7 @@ plot(g, directed = TRUE, weighted = TRUE,
      vertex.label = "")
 ```
 
-We also visualized the network to have a brief ideas of how it looks like. (To be redacted by mapping the countries to its geographical locations).
+We also visualized the network to have a brief ideas of how it looks like. We can see that it is quite a dense network with few nodes and a lot of edges. This will undoubtedly make the spreading of information (or infection) very rapid.
 
 # Propagation Simulation
 
@@ -186,7 +190,7 @@ realization_at <- sim_sir(g,beta = 0.3,mu=0.1,seeds)
 distinct(realization_at, inf)
 ```
 
-We first generate a random sample of 1% of the nodes as the initial infected states. We then run the simulation setting β at 0.3, mu at 0.1, and seeding with the countries previously generated. The resulting table from the simulation has 226 distinct rows, indicating that all nodes have been infected at some time *t*. This is exactly what we expected since the infection rate β is higher than the threshold β~c~ at 0.0004. We next will build a graph to see how the information was spreading throughout the simulation.
+We first generate a random sample of 1% of the nodes as the initial infected states. We then run the simulation setting β at 0.3, mu at 0.1, and seeding with the countries previously generated. The resulting table from the simulation has 226 distinct rows, indicating that all nodes have been infected at some time *t*. This does not come at all surprising as the infection rate β is higher than the threshold β~c~ at 0.0004. We next will build a graph to see how the information was spreading throughout the simulation.
 
 ```{r}
 realization_at <- realization_at %>% 
@@ -195,7 +199,7 @@ realization_at %>%
   ggplot(aes(x=t,y=ninf)) + geom_line()
 ```
 
-From the visualization, we can see that the information spread quickly at the beginning and peaked at around 43 new infected node around time *t* = 2. Since a large portion of the network has already been infected at this point, the amount of recovered country also went up. In addition to the fact that less countries are susceptible to be spread information to, the spreading starts to subside and around time *t* = 10, the majority of the nodes have already been spread the information to.
+From the visualization, we can see that the information spread quickly at the beginning and peaked at around 43 new infected node around time *t* = 2. Since a large portion of the network has already been infected at this point, the amount of recovered country should have also gone up. The spreading starts to subside and around time *t* = 10 perhaps due to the fect that there are less susceptible nodes and that the majority of the nodes have already been spread the information to.
 
 ### 2.2 Below threshold
 
@@ -218,19 +222,6 @@ realization_bt %>%
 ```
 
 The graph is clearly different from the graph where infection rate β is higher than the threshold. Here, we can see that the seeding nodes were barely able to spread the infection and only minimal nodes were infected throughout the simulation.
-
-### 2.3 Different Betas
-
-```{r}
-set.seed(230)
-results <- map_dfr(seq(0,0.2,0.01), # beta range
-        \(beta){ seeds <- sample(1:vcount(g),vcount(g)*0.01)
-        realization <- sim_sir(g,beta,mu,seeds) # make a realization for each beta
-        data.frame(beta,ninf=nrow(realization)) # create dataframe row
-        })
-results %>% ggplot(aes(x=beta,y=ninf))+ geom_point()+
-  geom_vline(xintercept = betac,linetype=2)
-```
 
 ## 3 Better 1% seeds
 
@@ -301,7 +292,7 @@ Nevertheless, it is absolutely important to acknowledge that this could have bee
 
 d)  Choose those 5% randomly in the network. Simulate the SIR model above β~c~ using 1% of the remaining nodes as seeds. Choose those seeds randomly.
 
-In order to create the effect of a reliable vaccine stopping the infection and transmission of information, we delete 5% of the nodes in the network randomly. As such, they loose their function as neighbors, and therefore possible recipients of the information reducing the overall connectedness of the network. To run the simulation, we use the epidemic threshold β aboveβ~c~ , which resulted in a higher infrection rate as outlined earlier.
+In order to create the effect of a reliable vaccine stopping the infection and transmission of information, we delete 5% of the nodes in the network randomly. As such, they will lose their function as neighbors, and therefore possible recipients of the information reducing the overall connectedness of the network. To run the simulation, we use the epidemic threshold β above β~c~ , which resulted in a higher infrection rate as outlined earlier.
 
 ```{r}
 beta_at <- 0.3
@@ -331,7 +322,7 @@ As the visualization shows, information spread as quick as the same simulation i
 
 e)  Choose those 5% according to their centrality. Simulate the SIR model above using 1% of the remaining nodes as seeds. Choose those seeds randomly.
 
-Following, we perform targeted vaccination, where seeds who are subsequently deleted to simulate their vaccination are sampled according to the centrality measures closeness, betweeness, and page rank. The top 5% of nodes according to the respective centrality measure are then sampled and deleted.
+Following, we will perform targeted vaccination, where seeds who are subsequently deleted to simulate their vaccination are sampled according to the centrality measures closeness, betweeness, and page rank. The top 5% of nodes according to the respective centrality measure are then sampled and deleted.
 
 ```{r}
 # immunization by closeness
@@ -405,15 +396,13 @@ Turning to the time it took to hit the peak in number of infected nodes, we reit
 
 ## 5 Comparing the Role of Centrality in Infection and Vaccination
 
-Generally, and according to intuition, the effect of the centrality on the spread is inverted when comparing infection and centrality. Whereas infecting the network based on `page rank` leads to faster spread, vaccinating nodes based on the same centrality measure slows down the speed of contamination comparatively. This of course, closely follows intuition where infection and vaccination exert contrary effects and subsequently sampling the same nodes for these inverted purposes generates these inverted outcomes. It is interesting, however, how much greater the spread of the absolute number of infected nodes at the peak infection point *t* is for infecting nodes randomly and based on centrality measures (43-58) versus performing the same technique to identify even more nodes selected to be vaccinated (48-53). As such, one conclusion may be 
-that spreading information in a network may be increased more easily with measures of centrality with fewer initially infected nodes than stopping (or slowing down) the spread of information even if using measures of centrality and more initially vaccinated nodes.
+Generally, and according to intuition, the effect of the centrality on the spreading is inverted when comparing infection and centrality. Whereas infecting the network based on `page rank` leads to faster spread, vaccinating nodes based on the same centrality measure slows down the speed of contamination comparatively. This, of course, closely follows intuition where infection and vaccination exert contrary effects and subsequently sampling the same nodes for these inverted purposes generates these inverted outcomes. It is interesting, however, how much greater the spread of the absolute number of infected nodes at the peak infection point *t* is for infecting nodes randomly and based on centrality measures (43-58) versus performing the same technique to identify even more nodes selected to be vaccinated (48-53). As such, one conclusion may be that spreading information in a network may be increased more easily with measures of centrality with fewer initially infected nodes than stopping (or slowing down) the spread of information even if using measures of centrality and more initially vaccinated nodes.
 
 ## 6 Building a predictive model
 
 With the results of part b) train a model that predicts that time to infection of a node using their degree, centrality, betweeness and page rank. Use that model to select the seed nodes as those with the smallest time to infection in part c). Repeat d).
 
 ```{r}
-
 #RESULTS OF PART B
 # Sample 1% of the network as initial infectious seed
 seeds <- sample(1:vcount(g),0.01*vcount(g))
@@ -422,12 +411,11 @@ realization_at <- sim_sir(g,beta = 0.3,mu=0.1,seeds)
 realization_at
 ```
 
-First, we compute the degree, centrality, betweenness and pagerank for each node and combine these metrics with the output of the spreading simulation into a table. Then, this table is used to visualise the relationship between the metric and the time of infection (t)
+First, we compute the degree, centrality, betweenness and pagerank for each node and combine these metrics with the output of the spreading simulation into a table. Then, this table is used to visualise the relationship between the metric and the time of infection *t*.
 
 **1) degree**
 
 ```{r,fig.height=3}
-
 set.seed(230)
 #Above treshold
 
@@ -440,7 +428,6 @@ p1 <-table_d_at %>%
   ggplot(aes(x=t,y=degree)) + geom_point() + 
   geom_smooth(method = "lm", se = FALSE, color = "purple")+
   scale_y_log10()
-
 ```
 
 **2) centrality**
@@ -505,7 +492,7 @@ cor(df$t,df[,-c(1,2)])
 
 The plots and the correlation matrix show that the metrics are only weakly associated with the time of infection.
 
-In the following section, we train a model to predict the tine of infection based on the four metrics evaluated above. First, the data is splitted into training (80% ) and testing (20% ) data sets. Th train control is set to utilising 10 fold cross validations. Then, three different machine learning algorithms are trained to predict the time to infection. The first algorithm is a *random forest* which is an ensemble learning method that constructs multiple decision trees during training and outputs the mean prediction (regression) of the individual trees as its result. The second algorithm is a *poisson regression* this model is designed to estimate models with a non-negative discrete outcome variable. The last algorithm is a *neural network* is a computational model inspired by the structure and function of the human brain, composed of interconnected nodes organized in layers, capable of learning complex patterns from data through iterative training algorithms.
+In the following section, we train a model to predict the tine of infection based on the four metrics evaluated above. First, the data is split into training (80% ) and testing (20% ) data sets. The train control is set to utilising 10 fold cross validations. Then, three different machine learning algorithms are trained to predict the time to infection. The first algorithm is a *random forest* which is an ensemble learning method that constructs multiple decision trees during training and outputs the mean prediction (regression) of the individual trees as its result. The second algorithm is a *poisson regression* this model is designed to estimate models with a non-negative discrete outcome variable. The last algorithm is a *neural network* which is a computational model inspired by the structure and function of the human brain, composed of interconnected nodes organized in layers, capable of learning complex patterns from data through iterative training algorithms.
 
 ```{r}
 options(scipen = 999)
@@ -566,7 +553,7 @@ ggplot(testData, aes(x = t, y = predictions)) +
 
 ```
 
-The accuracy metrics do not seem to differ greatly and we select the predictions based on the random forest model. The graph visualising the predicted vs actual time to infection shows that the random forest model does not predict the time to infection precisely. As the network is rather small and the training set used to train the model is also relatively small, causing the algorithm to not have sufficient data points to learn and provide precise prediction.
+The accuracy metrics do not seem to differ greatly and we select the predictions based on the random forest model. The graph visualising the predicted vs actual time to infection shows that the random forest model does not predict the time to infection precisely. As the network is rather small and the training set used to train the model is also relatively small, ultimately causing the algorithm to not have sufficient data points to learn and provide precise prediction.
 
 ### 6.1 Nodes with lowest time to infection
 
